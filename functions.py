@@ -2,6 +2,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.subplots as sp
+from scipy.stats import chi2_contingency
 from typing import List
 import numpy as np
 
@@ -13,14 +14,13 @@ ALL_COLORS = PRIMARY_COLORS + SECONDARY_COLORS
 def plot_combined_histograms(
     df: pd.DataFrame, features: List[str], nbins: int = 40, save_path: str = None
 ) -> None:
-    """
-    Plots combined histograms for specified features in the DataFrame.
+    """Plots combined histograms for specified features in the DataFrame.
 
-    Parameters:
-    - df (pd.DataFrame): DataFrame to plot.
-    - features (List[str]): List of features to plot histograms for.
-    - nbins (int): Number of bins to use in histograms.
-    - save_path (str): Path to save the image file (optional).
+    Args:
+        df (pd.DataFrame): DataFrame to plot.
+        features (List[str]): List of features to plot histograms for.
+        nbins (int): Number of bins to use in histograms.
+        save_path (str): Path to save the image file (optional).
     """
     title = f"Distribution of {', '.join(features)}"
     rows = 1
@@ -70,16 +70,14 @@ def plot_combined_bar_charts(
     max_features_per_plot: int = 3,
     save_path: str = None,
 ) -> None:
-    """
-    Plots combined bar charts for specified categorical features in the DataFrame, with a maximum number of features per plot.
+    """Plots combined bar charts for specified categorical features in the DataFrame.
 
-    Parameters:
-    - df (pd.DataFrame): DataFrame to plot.
-    - features (List[str]): List of categorical features to plot bar charts for.
-    - max_features_per_plot (int): Maximum number of features to display per plot.
-    - save_path (str): Path to save the image file (optional).
+    Args:
+        df (pd.DataFrame): DataFrame to plot.
+        features (List[str]): List of categorical features to plot bar charts for.
+        max_features_per_plot (int): Maximum number of features to display per plot.
+        save_path (str): Path to save the image file (optional).
     """
-    # Split the features list into chunks of size max_features_per_plot
     feature_chunks = [
         features[i : i + max_features_per_plot]
         for i in range(0, len(features), max_features_per_plot)
@@ -138,13 +136,12 @@ def plot_combined_bar_charts(
 def plot_combined_boxplots(
     df: pd.DataFrame, features: List[str], save_path: str = None
 ) -> None:
-    """
-    Plots combined boxplots for specified numerical features in the DataFrame.
+    """Plots combined boxplots for specified numerical features in the DataFrame.
 
-    Parameters:
-    - df (pd.DataFrame): DataFrame to plot.
-    - features (List[str]): List of numerical features to plot boxplots for.
-    - save_path (str): Path to save the image file (optional).
+    Args:
+        df (pd.DataFrame): DataFrame to plot.
+        features (List[str]): List of numerical features to plot boxplots for.
+        save_path (str): Path to save the image file (optional).
     """
     title = f"Boxplots of {', '.join(features)}"
     rows = 1
@@ -162,16 +159,16 @@ def plot_combined_boxplots(
                     color=PRIMARY_COLORS[i % len(PRIMARY_COLORS)],
                     line=dict(color="#000000", width=1),
                 ),
-                boxmean="sd",  # Show mean and standard deviation
-                showlegend=False,  # Disable legend for each trace
+                boxmean="sd",
+                showlegend=False,
             ),
             row=1,
             col=i + 1,
         )
         fig.update_yaxes(title_text="Value", row=1, col=i + 1, title_font=dict(size=14))
         fig.update_xaxes(
-            tickvals=[0],  # Dummy tick values
-            ticktext=[feature],  # Use feature names as tick text
+            tickvals=[0],
+            ticktext=[feature],
             row=1,
             col=i + 1,
             title_font=dict(size=14),
@@ -186,9 +183,7 @@ def plot_combined_boxplots(
         template="plotly_white",
         height=500,
         width=400 * len(features),
-        margin=dict(
-            l=50, r=50, t=80, b=150
-        ),  # Increase bottom margin to accommodate x-axis labels
+        margin=dict(l=50, r=50, t=80, b=150),
     )
 
     fig.show()
@@ -198,23 +193,18 @@ def plot_combined_boxplots(
 
 
 def plot_correlation_matrix(
-    df: pd.DataFrame, numerical_features: list, save_path: str = None
+    df: pd.DataFrame, numerical_features: List[str], save_path: str = None
 ) -> None:
-    """
-    Plots the correlation matrix of the specified numerical features in the DataFrame.
+    """Plots the correlation matrix of the specified numerical features in the DataFrame.
 
-    Parameters:
-    - df (pd.DataFrame): DataFrame containing the data.
-    - numerical_features (list): List of numerical features to include in the correlation matrix.
-    - save_path (str): Path to save the image file (optional).
+    Args:
+        df (pd.DataFrame): DataFrame containing the data.
+        numerical_features (List[str]): List of numerical features to include in the correlation matrix.
+        save_path (str): Path to save the image file (optional).
     """
-    # Select only the specified numerical features
     numerical_df = df[numerical_features]
-
-    # Calculate the correlation matrix
     correlation_matrix = numerical_df.corr()
 
-    # Create the heatmap
     fig = px.imshow(
         correlation_matrix,
         text_auto=True,
@@ -222,7 +212,6 @@ def plot_correlation_matrix(
         title="Correlation Matrix",
     )
 
-    # Update layout for better appearance
     fig.update_layout(
         title={
             "text": "Correlation Matrix",
@@ -240,72 +229,21 @@ def plot_correlation_matrix(
         yaxis=dict(title_font=dict(size=18), tickfont=dict(size=14)),
     )
 
-    # Show the plot
     fig.show()
 
-    # Save the plot if a path is provided
     if save_path:
         fig.write_image(save_path)
 
 
-def plot_box_violin_by_target(
-    df,
-    numerical_features,
-    target_feature="TravelInsurance",
-    plot_type="box",
-    save_path=None,
-):
-    for num_feature in numerical_features:
-        if plot_type == "box":
-            fig = px.box(
-                df,
-                x=target_feature,
-                y=num_feature,
-                title=f"{num_feature} by {target_feature}",
-                color=target_feature,
-            )
-        elif plot_type == "violin":
-            fig = px.violin(
-                df,
-                x=target_feature,
-                y=num_feature,
-                title=f"{num_feature} by {target_feature}",
-                box=True,
-                color=target_feature,
-            )
-
-        fig.update_layout(
-            title={
-                "text": f"{num_feature} by {target_feature}",
-                "y": 0.95,
-                "x": 0.5,
-                "xanchor": "center",
-                "yanchor": "top",
-            },
-            title_font=dict(size=20),
-            template="plotly_white",
-            height=600,
-            width=800,
-            margin=dict(l=50, r=50, t=80, b=50),
-        )
-        fig.show()
-
-        if save_path:
-            fig.write_image(
-                f"{save_path}/{num_feature}_by_{target_feature}_{plot_type}.png"
-            )
-
-
 def detect_anomalies_iqr(df: pd.DataFrame, features: List[str]) -> pd.DataFrame:
-    """
-    Detects anomalies in multiple features using the IQR method.
+    """Detects anomalies in multiple features using the IQR method.
 
-    Parameters:
-    - df (pd.DataFrame): DataFrame containing the data.
-    - features (List[str]): List of features to detect anomalies in.
+    Args:
+        df (pd.DataFrame): DataFrame containing the data.
+        features (List[str]): List of features to detect anomalies in.
 
     Returns:
-    - pd.DataFrame: DataFrame containing the anomalies for each feature.
+        pd.DataFrame: DataFrame containing the anomalies for each feature.
     """
     anomalies_list = []
 
@@ -318,11 +256,11 @@ def detect_anomalies_iqr(df: pd.DataFrame, features: List[str]) -> pd.DataFrame:
             print(f"Feature '{feature}' is not numerical and will be skipped.")
             continue
 
-        Q1 = df[feature].quantile(0.25)
-        Q3 = df[feature].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
+        q1 = df[feature].quantile(0.25)
+        q3 = df[feature].quantile(0.75)
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
         feature_anomalies = df[
             (df[feature] < lower_bound) | (df[feature] > upper_bound)
         ]
@@ -333,11 +271,46 @@ def detect_anomalies_iqr(df: pd.DataFrame, features: List[str]) -> pd.DataFrame:
             print(f"No anomalies detected in feature '{feature}'.")
         anomalies_list.append(feature_anomalies)
 
-    # Combine all anomalies into a single DataFrame and drop duplicates
     if anomalies_list:
         anomalies = pd.concat(anomalies_list).drop_duplicates().reset_index(drop=True)
-        anomalies = anomalies[features]  # Keep only the relevant numeric features
+        anomalies = anomalies[features]
     else:
         anomalies = pd.DataFrame(columns=features)
 
     return anomalies
+
+
+def chi_square_test(
+    df: pd.DataFrame, categorical_features: List[str], target: str
+) -> None:
+    """Perform Chi-Square tests for association between categorical features and a target variable.
+
+    Args:
+        df (pd.DataFrame): The dataframe containing the data.
+        categorical_features (List[str]): List of categorical feature column names.
+        target (str): The target variable column name.
+
+    Raises:
+        ValueError: If input arguments are not as expected.
+    """
+    if not isinstance(df, pd.DataFrame):
+        raise ValueError("df should be a pandas DataFrame.")
+    if not all(isinstance(col, str) for col in categorical_features):
+        raise ValueError("categorical_features should be a list of strings.")
+    if not isinstance(target, str):
+        raise ValueError("target should be a string.")
+
+    for col in categorical_features:
+        if col not in df.columns or target not in df.columns:
+            print(f"Column '{col}' or target '{target}' not found in DataFrame.")
+            continue
+
+        contingency_table = pd.crosstab(df[col], df[target])
+        chi2, p, dof, expected = chi2_contingency(contingency_table)
+
+        print(f"\nChi-Square test results for '{col}':")
+        print(f"Chi2 statistic = {chi2}, p-value = {p}")
+        if p < 0.05:
+            print(f"Significant association between '{col}' and '{target}'.")
+        else:
+            print(f"No significant association between '{col}' and '{target}'.")
