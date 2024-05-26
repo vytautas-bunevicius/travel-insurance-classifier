@@ -3,8 +3,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.subplots as sp
 from scipy.stats import chi2_contingency
-from typing import List
+from scipy import stats
+from typing import Tuple, List
 import numpy as np
+from scipy.stats import mannwhitneyu
+
 
 PRIMARY_COLORS = ["#5684F7", "#3A5CED", "#7E7AE6"]
 SECONDARY_COLORS = ["#7BC0FF", "#B8CCF4", "#18407F", "#85A2FF", "#C2A9FF", "#3D3270"]
@@ -314,3 +317,70 @@ def chi_square_test(
             print(f"Significant association between '{col}' and '{target}'.")
         else:
             print(f"No significant association between '{col}' and '{target}'.")
+
+
+def confidence_interval(
+    data: pd.Series, confidence: float = 0.95
+) -> Tuple[float, float]:
+    """Calculate the confidence interval for a given dataset.
+
+    Args:
+        data: A pandas Series of numerical data.
+        confidence: The confidence level for the interval (default is 0.95).
+
+    Returns:
+        A tuple containing the lower and upper bounds of the confidence interval.
+    """
+    mean = np.mean(data)
+    sem = stats.sem(data)
+    margin = sem * stats.t.ppf((1 + confidence) / 2, len(data) - 1)
+    return mean - margin, mean + margin
+
+
+def analyze_features(
+    travel_df: pd.DataFrame, numerical_features: list, target: str
+) -> None:
+    """Analyze numerical features of a DataFrame by calculating confidence intervals.
+
+    Args:
+        travel_df: The DataFrame containing the data.
+        numerical_features: A list of numerical feature names to analyze.
+        target: The target column name for the classification.
+
+    Prints:
+        The 95% confidence intervals for each feature for insured and not insured groups.
+    """
+    for feature in numerical_features:
+        insured = travel_df[travel_df[target] == 1][feature]
+        not_insured = travel_df[travel_df[target] == 0][feature]
+        ci_insured = confidence_interval(insured)
+        ci_not_insured = confidence_interval(not_insured)
+        print(f"95% confidence interval for {feature} (insured): {ci_insured}")
+        print(f"95% confidence interval for {feature} (not insured): {ci_not_insured}")
+
+
+def analyze_mannwhitneyu(
+    travel_df: pd.DataFrame, numerical_features: List[str], target: str
+) -> None:
+    """Analyze numerical features using the Mann-Whitney U test.
+
+    Args:
+        travel_df: The DataFrame containing the data.
+        numerical_features: A list of numerical feature names to analyze.
+        target: The target column name for the classification.
+
+    Prints:
+        The U-statistic and p-value for the Mann-Whitney U test for each feature,
+        and whether there is a significant difference in distributions.
+    """
+    for feature in numerical_features:
+        insured = travel_df[travel_df[target] == 1][feature]
+        not_insured = travel_df[travel_df[target] == 0][feature]
+        u_stat, p_val = mannwhitneyu(insured, not_insured, alternative="two-sided")
+        print(
+            f"Mann-Whitney U test for {feature}: U-statistic = {u_stat}, p-value = {p_val}"
+        )
+        if p_val < 0.05:
+            print(f"Significant difference in distributions for {feature}.")
+        else:
+            print(f"No significant difference in distributions for {feature}.")
