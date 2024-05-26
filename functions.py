@@ -246,3 +246,98 @@ def plot_correlation_matrix(
     # Save the plot if a path is provided
     if save_path:
         fig.write_image(save_path)
+
+
+def plot_box_violin_by_target(
+    df,
+    numerical_features,
+    target_feature="TravelInsurance",
+    plot_type="box",
+    save_path=None,
+):
+    for num_feature in numerical_features:
+        if plot_type == "box":
+            fig = px.box(
+                df,
+                x=target_feature,
+                y=num_feature,
+                title=f"{num_feature} by {target_feature}",
+                color=target_feature,
+            )
+        elif plot_type == "violin":
+            fig = px.violin(
+                df,
+                x=target_feature,
+                y=num_feature,
+                title=f"{num_feature} by {target_feature}",
+                box=True,
+                color=target_feature,
+            )
+
+        fig.update_layout(
+            title={
+                "text": f"{num_feature} by {target_feature}",
+                "y": 0.95,
+                "x": 0.5,
+                "xanchor": "center",
+                "yanchor": "top",
+            },
+            title_font=dict(size=20),
+            template="plotly_white",
+            height=600,
+            width=800,
+            margin=dict(l=50, r=50, t=80, b=50),
+        )
+        fig.show()
+
+        if save_path:
+            fig.write_image(
+                f"{save_path}/{num_feature}_by_{target_feature}_{plot_type}.png"
+            )
+
+
+def detect_anomalies_iqr(df: pd.DataFrame, features: List[str]) -> pd.DataFrame:
+    """
+    Detects anomalies in multiple features using the IQR method.
+
+    Parameters:
+    - df (pd.DataFrame): DataFrame containing the data.
+    - features (List[str]): List of features to detect anomalies in.
+
+    Returns:
+    - pd.DataFrame: DataFrame containing the anomalies for each feature.
+    """
+    anomalies_list = []
+
+    for feature in features:
+        if feature not in df.columns:
+            print(f"Feature '{feature}' not found in DataFrame.")
+            continue
+
+        if not np.issubdtype(df[feature].dtype, np.number):
+            print(f"Feature '{feature}' is not numerical and will be skipped.")
+            continue
+
+        Q1 = df[feature].quantile(0.25)
+        Q3 = df[feature].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+        feature_anomalies = df[
+            (df[feature] < lower_bound) | (df[feature] > upper_bound)
+        ]
+        if not feature_anomalies.empty:
+            print(f"Anomalies detected in feature '{feature}':")
+            print(feature_anomalies)
+        else:
+            print(f"No anomalies detected in feature '{feature}'.")
+        anomalies_list.append(feature_anomalies)
+
+    # Combine all anomalies into a single DataFrame and drop duplicates
+    if anomalies_list:
+        anomalies = pd.concat(anomalies_list).drop_duplicates().reset_index(drop=True)
+        anomalies = anomalies[features]  # Keep only the relevant numeric features
+    else:
+        anomalies = pd.DataFrame(columns=features)
+
+    return anomalies
