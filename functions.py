@@ -92,7 +92,7 @@ def plot_combined_bar_charts(
         cols = len(feature_chunk)
 
         fig = sp.make_subplots(
-            rows=rows, cols=cols, subplot_titles=feature_chunk, horizontal_spacing=0.1
+            rows=rows, cols=cols, subplot_titles=[None] * cols, horizontal_spacing=0.1
         )
 
         for i, feature in enumerate(feature_chunk):
@@ -112,7 +112,11 @@ def plot_combined_bar_charts(
                 col=i + 1,
             )
             fig.update_xaxes(
-                title_text=feature, row=1, col=i + 1, title_font=dict(size=14)
+                title_text=feature,
+                row=1,
+                col=i + 1,
+                title_font=dict(size=14),
+                showticklabels=True,
             )
             fig.update_yaxes(
                 title_text="Count", row=1, col=i + 1, title_font=dict(size=14)
@@ -126,14 +130,14 @@ def plot_combined_bar_charts(
             template="plotly_white",
             height=500,
             width=400 * len(feature_chunk),
-            margin=dict(l=50, r=50, t=80, b=50),
+            margin=dict(l=50, r=50, t=80, b=150),
         )
 
         fig.show()
 
         if save_path:
-            chunk_save_path = f"{save_path.rstrip('.png')}_part{chunk_index + 1}.png"
-            fig.write_image(chunk_save_path)
+            file_path = f"{save_path}_chunk_{chunk_index + 1}.png"
+            fig.write_image(file_path)
 
 
 def plot_combined_boxplots(
