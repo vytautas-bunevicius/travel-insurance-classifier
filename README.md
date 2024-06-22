@@ -6,7 +6,7 @@ To replicate the analysis locally, follow these setup steps:
 
 - Clone the Repository:
 
-      git clone https://github.com/vytautas-bunevicius/travel-insurance-prediction.git
+      git clone https://github.com/vytautas-bunevicius/travel-insurance-classifier.git
 
 - Navigate to the repository directory:
 
