@@ -10,7 +10,7 @@ To replicate the analysis locally, follow these setup steps:
 
 - Navigate to the repository directory:
 
-      cd travel-insurance-prediction
+      cd travel-insurance-classifier
 
 - Install necessary Python libraries using the command:
 
