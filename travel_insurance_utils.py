@@ -1,12 +1,26 @@
+# Standard library imports
+from typing import List, Tuple, Dict
+
+# Third-party imports
+import numpy as np
 import pandas as pd
+from scipy import stats
+from scipy.stats import chi2_contingency, mannwhitneyu
+
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.subplots as sp
-from scipy.stats import chi2_contingency
-from scipy import stats
-from typing import Tuple, List
-import numpy as np
-from scipy.stats import mannwhitneyu
+from plotly.subplots import make_subplots
+
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    precision_recall_curve,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+from sklearn.inspection import permutation_importance
 
 
 PRIMARY_COLORS = ["#5684F7", "#3A5CED", "#7E7AE6"]
@@ -388,3 +402,217 @@ def analyze_mannwhitneyu(
             print(f"Significant difference in distributions for {feature}.")
         else:
             print(f"No significant difference in distributions for {feature}.")
+
+
+def adjust_threshold_for_recall(
+    y_true: np.ndarray, y_proba: np.ndarray, target_recall: float = 1.0
+) -> float:
+    """
+    Adjusts the classification threshold to achieve a target recall.
+
+    Args:
+        y_true: Array of true labels.
+        y_proba: Array of predicted probabilities.
+        target_recall: The desired recall value (default: 1.0).
+
+    Returns:
+        The adjusted threshold value.
+    """
+    precisions, recalls, thresholds = precision_recall_curve(y_true, y_proba)
+    target_index = np.argmin(np.abs(recalls - target_recall))
+    return thresholds[target_index]
+
+
+def evaluate_model(
+    name: str, y_true: np.ndarray, y_proba: np.ndarray, threshold: float
+) -> dict:
+    """
+    Evaluates a model's performance using various metrics.
+
+    Args:
+        name: The name of the model.
+        y_true: Array of true labels.
+        y_proba: Array of predicted probabilities.
+        threshold: The classification threshold.
+
+    Returns:
+        A dictionary containing the evaluation metrics.
+    """
+    y_pred = (y_proba >= threshold).astype(int)
+    metrics = {
+        "Recall": recall_score(y_true, y_pred),
+        "Precision": precision_score(y_true, y_pred),
+        "F1 Score": f1_score(y_true, y_pred),
+        "Accuracy": accuracy_score(y_true, y_pred),
+        "ROC AUC": roc_auc_score(y_true, y_proba),
+        "Threshold": threshold,
+    }
+    print(f"\n{name} Performance:")
+    for metric, value in metrics.items():
+        print(f"{metric}: {value:.4f}")
+    return metrics
+
+
+def plot_model_performance(
+    results: Dict[str, Dict[str, float]], metrics: List[str], save_path: str = None
+) -> None:
+    """
+    Plots and optionally saves a bar chart of model performance metrics with legend on the right.
+
+    Args:
+        results: A dictionary with model names as keys and dicts of performance metrics as values.
+        metrics: List of performance metrics to plot (e.g., 'Accuracy', 'Precision').
+        save_path: Path to save the image file (optional).
+    """
+    model_names = list(results.keys())
+
+    data = {
+        metric: [results[name][metric] for name in model_names] for metric in metrics
+    }
+
+    fig = go.Figure()
+
+    for i, metric in enumerate(metrics):
+        fig.add_trace(
+            go.Bar(
+                x=model_names,
+                y=data[metric],
+                name=metric,
+                marker_color=ALL_COLORS[i % len(ALL_COLORS)],
+                text=[f"{value:.2f}" for value in data[metric]],
+                textposition="auto",
+            )
+        )
+
+    fig.update_layout(
+        barmode="group",
+        title={
+            "text": "Comparison of Model Performance Metrics",
+            "y": 0.95,
+            "x": 0.5,
+            "xanchor": "center",
+            "yanchor": "top",
+            "font": dict(size=24),
+        },
+        xaxis_title="Model",
+        yaxis_title="Value",
+        legend_title="Metrics",
+        font=dict(size=14),
+        height=500,
+        width=1200,
+        template="plotly_white",
+        legend=dict(yanchor="top", y=1, xanchor="left", x=1.02),
+    )
+
+    fig.update_yaxes(range=[0, 1], showgrid=True, gridwidth=1, gridcolor="LightGrey")
+    fig.update_xaxes(tickangle=-45)
+
+    fig.show()
+
+    if save_path:
+        fig.write_image(save_path)
+
+
+def plot_combined_confusion_matrices(
+    results, y_test, y_pred_dict, labels=None, save_path=None
+):
+    """
+    Plots a combined confusion matrix for multiple models.
+
+    Parameters:
+    results (dict): A dictionary containing the results of multiple models.
+        Each key is the name of a model, and the value is the result of that model.
+    y_test (numpy.ndarray): The true labels for the dataset.
+    y_pred_dict (dict): A dictionary containing the predicted labels for each model.
+        Each key is the name of a model, and the value is the predicted labels for that model.
+    labels (list, optional): A list of class labels. If not provided, default labels are used.
+    save_path (str, optional): The path to save the image file. If not provided, the image is not saved.
+
+    Returns:
+    None
+    """
+    n_models = len(results)
+    if n_models > 4:
+        print("Warning: Only the first 4 models will be plotted.")
+        n_models = 4
+
+    fig = make_subplots(rows=2, cols=2, subplot_titles=list(results.keys())[:n_models])
+
+    for i, (name, model_results) in enumerate(list(results.items())[:n_models]):
+        row = i // 2 + 1
+        col = i % 2 + 1
+
+        cm = confusion_matrix(y_test, y_pred_dict[name])
+        cm_percent = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis] * 100
+
+        # Create custom text for each cell
+        text = [
+            [
+                f"TN: {cm[0][0]}<br>({cm_percent[0][0]:.1f}%)",
+                f"FP: {cm[0][1]}<br>({cm_percent[0][1]:.1f}%)",
+            ],
+            [
+                f"FN: {cm[1][0]}<br>({cm_percent[1][0]:.1f}%)",
+                f"TP: {cm[1][1]}<br>({cm_percent[1][1]:.1f}%)",
+            ],
+        ]
+
+        # Define colorscale with normalized values
+        colorscale = [
+            [0, ALL_COLORS[2]],  # TN
+            [0.33, ALL_COLORS[1]],  # FP
+            [0.66, ALL_COLORS[1]],  # FN
+            [1, ALL_COLORS[0]],  # TP
+        ]
+
+        heatmap = go.Heatmap(
+            z=cm,
+            x=labels if labels else ["Class 0", "Class 1"],
+            y=labels if labels else ["Class 0", "Class 1"],
+            hoverongaps=False,
+            text=text,
+            texttemplate="%{text}",
+            colorscale=colorscale,
+            showscale=False,
+        )
+
+        fig.add_trace(heatmap, row=row, col=col)
+
+        fig.update_xaxes(
+            title_text="Predicted", row=row, col=col, tickfont=dict(size=10)
+        )
+        fig.update_yaxes(title_text="Actual", row=row, col=col, tickfont=dict(size=10))
+
+    fig.update_layout(
+        title_text="Confusion Matrices for All Models",
+        title_x=0.5,
+        height=500,
+        width=1200,
+        showlegend=False,
+        font=dict(size=12),
+    )
+
+    fig.show()
+
+    if save_path:
+        fig.write_image(save_path)
+
+
+def extract_feature_importances(model, X, y):
+    """
+    Extract feature importances using permutation importance for models that do not directly provide them.
+
+    Args:
+        model: Trained model
+        X: Feature data (DataFrame)
+        y: Target data (Series or array)
+
+    Returns:
+        Array of feature importances
+    """
+    if hasattr(model, "feature_importances_"):
+        return model.feature_importances_
+    else:
+        # Calculate permutation importance
+        perm_import = permutation_importance(model, X, y, n_repeats=30, random_state=42)
+        return perm_import.importances_mean
