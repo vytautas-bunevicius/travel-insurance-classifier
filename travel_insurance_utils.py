@@ -1,7 +1,44 @@
-# Standard library imports
-from typing import List, Tuple, Dict
+"""Utility functions for travel insurance data analysis and modeling.
 
-# Third-party imports
+This module provides a set of functions for analyzing, visualizing, and
+modeling travel insurance data. It includes tools for exploratory data
+analysis, statistical testing, model evaluation, and feature importance
+analysis, tailored specifically for travel insurance datasets.
+
+Functions:
+    plot_combined_histograms: Plot histograms for multiple features.
+    plot_combined_bar_charts: Create bar charts for categorical features.
+    plot_combined_boxplots: Generate boxplots for numerical features.
+    plot_correlation_matrix: Visualize correlation between numerical features.
+    detect_anomalies_iqr: Detect anomalies using the IQR method.
+    chi_square_test: Perform chi-square tests for categorical features.
+    confidence_interval: Calculate confidence intervals for a dataset.
+    analyze_features: Analyze numerical features with confidence intervals.
+    analyze_mannwhitneyu: Conduct Mann-Whitney U tests for numerical features.
+    adjust_threshold_for_recall: Adjust classification threshold for target recall.
+    evaluate_model: Evaluate a travel insurance prediction model.
+    plot_model_performance: Visualize performance metrics for multiple models.
+    plot_combined_confusion_matrices: Plot confusion matrices for multiple models.
+    extract_feature_importances: Extract feature importances from a model.
+
+Example usage:
+    import travel_insurance_utils as tiu
+
+    # Plot combined histograms for age and trip duration
+    tiu.plot_combined_histograms(df, ['Age', 'TripDuration'], nbins=40)
+
+    # Evaluate a travel insurance prediction model
+    metrics = tiu.evaluate_model('RandomForest', y_true, y_pred, threshold)
+
+Note:
+    This module is specifically designed for travel insurance data analysis
+    and modeling. It assumes that the input data is structured similarly to
+    typical travel insurance datasets, with features such as age, trip
+    duration, destination, etc.
+"""
+
+from typing import Dict, List, Tuple
+
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -14,6 +51,7 @@ from plotly.subplots import make_subplots
 
 from sklearn.metrics import (
     accuracy_score,
+    confusion_matrix,
     f1_score,
     precision_recall_curve,
     precision_score,
@@ -22,9 +60,15 @@ from sklearn.metrics import (
 )
 from sklearn.inspection import permutation_importance
 
-
 PRIMARY_COLORS = ["#5684F7", "#3A5CED", "#7E7AE6"]
-SECONDARY_COLORS = ["#7BC0FF", "#B8CCF4", "#18407F", "#85A2FF", "#C2A9FF", "#3D3270"]
+SECONDARY_COLORS = [
+    "#7BC0FF",
+    "#B8CCF4",
+    "#18407F",
+    "#85A2FF",
+    "#C2A9FF",
+    "#3D3270",
+]
 ALL_COLORS = PRIMARY_COLORS + SECONDARY_COLORS
 
 
@@ -44,7 +88,10 @@ def plot_combined_histograms(
     cols = len(features)
 
     fig = sp.make_subplots(
-        rows=rows, cols=cols, subplot_titles=features, horizontal_spacing=0.1
+        rows=rows,
+        cols=cols,
+        subplot_titles=features,
+        horizontal_spacing=0.1,
     )
 
     for i, feature in enumerate(features):
@@ -53,26 +100,36 @@ def plot_combined_histograms(
                 x=df[feature],
                 nbinsx=nbins,
                 name=feature,
-                marker=dict(
-                    color=PRIMARY_COLORS[i % len(PRIMARY_COLORS)],
-                    line=dict(color="#000000", width=1),
-                ),
+                marker={
+                    "color": PRIMARY_COLORS[i % len(PRIMARY_COLORS)],
+                    "line": {"color": "#000000", "width": 1},
+                },
             ),
             row=1,
             col=i + 1,
         )
-        fig.update_xaxes(title_text=feature, row=1, col=i + 1, title_font=dict(size=14))
-        fig.update_yaxes(title_text="Count", row=1, col=i + 1, title_font=dict(size=14))
+        fig.update_xaxes(
+            title_text=feature,
+            row=1,
+            col=i + 1,
+            title_font={"size": 14},
+        )
+        fig.update_yaxes(
+            title_text="Count",
+            row=1,
+            col=i + 1,
+            title_font={"size": 14},
+        )
 
     fig.update_layout(
         title_text=title,
         title_x=0.5,
-        title_font=dict(size=20),
+        title_font={"size": 20},
         showlegend=False,
         template="plotly_white",
         height=500,
         width=400 * len(features),
-        margin=dict(l=50, r=50, t=80, b=50),
+        margin={"l": 50, "r": 50, "t": 80, "b": 50},
     )
 
     fig.show()
@@ -106,7 +163,10 @@ def plot_combined_bar_charts(
         cols = len(feature_chunk)
 
         fig = sp.make_subplots(
-            rows=rows, cols=cols, subplot_titles=[None] * cols, horizontal_spacing=0.1
+            rows=rows,
+            cols=cols,
+            subplot_titles=[None] * cols,
+            horizontal_spacing=0.1,
         )
 
         for i, feature in enumerate(feature_chunk):
@@ -117,10 +177,10 @@ def plot_combined_bar_charts(
                     x=value_counts[feature],
                     y=value_counts["count"],
                     name=feature,
-                    marker=dict(
-                        color=PRIMARY_COLORS[i % len(PRIMARY_COLORS)],
-                        line=dict(color="#000000", width=1),
-                    ),
+                    marker={
+                        "color": PRIMARY_COLORS[i % len(PRIMARY_COLORS)],
+                        "line": {"color": "#000000", "width": 1},
+                    },
                 ),
                 row=1,
                 col=i + 1,
@@ -129,22 +189,25 @@ def plot_combined_bar_charts(
                 title_text=feature,
                 row=1,
                 col=i + 1,
-                title_font=dict(size=14),
+                title_font={"size": 14},
                 showticklabels=True,
             )
             fig.update_yaxes(
-                title_text="Count", row=1, col=i + 1, title_font=dict(size=14)
+                title_text="Count",
+                row=1,
+                col=i + 1,
+                title_font={"size": 14},
             )
 
         fig.update_layout(
             title_text=title,
             title_x=0.5,
-            title_font=dict(size=20),
+            title_font={"size": 20},
             showlegend=False,
             template="plotly_white",
             height=500,
             width=400 * len(feature_chunk),
-            margin=dict(l=50, r=50, t=80, b=150),
+            margin={"l": 50, "r": 50, "t": 80, "b": 150},
         )
 
         fig.show()
@@ -169,42 +232,50 @@ def plot_combined_boxplots(
     cols = len(features)
 
     fig = sp.make_subplots(
-        rows=rows, cols=cols, subplot_titles=[None] * cols, horizontal_spacing=0.1
+        rows=rows,
+        cols=cols,
+        subplot_titles=[None] * cols,
+        horizontal_spacing=0.1,
     )
 
     for i, feature in enumerate(features):
         fig.add_trace(
             go.Box(
                 y=df[feature],
-                marker=dict(
-                    color=PRIMARY_COLORS[i % len(PRIMARY_COLORS)],
-                    line=dict(color="#000000", width=1),
-                ),
+                marker={
+                    "color": PRIMARY_COLORS[i % len(PRIMARY_COLORS)],
+                    "line": {"color": "#000000", "width": 1},
+                },
                 boxmean="sd",
                 showlegend=False,
             ),
             row=1,
             col=i + 1,
         )
-        fig.update_yaxes(title_text="Value", row=1, col=i + 1, title_font=dict(size=14))
+        fig.update_yaxes(
+            title_text="Value",
+            row=1,
+            col=i + 1,
+            title_font={"size": 14},
+        )
         fig.update_xaxes(
             tickvals=[0],
             ticktext=[feature],
             row=1,
             col=i + 1,
-            title_font=dict(size=14),
+            title_font={"size": 14},
             showticklabels=True,
         )
 
     fig.update_layout(
         title_text=title,
         title_x=0.5,
-        title_font=dict(size=20),
+        title_font={"size": 20},
         showlegend=False,
         template="plotly_white",
         height=500,
         width=400 * len(features),
-        margin=dict(l=50, r=50, t=80, b=150),
+        margin={"l": 50, "r": 50, "t": 80, "b": 150},
     )
 
     fig.show()
@@ -216,13 +287,14 @@ def plot_combined_boxplots(
 def plot_correlation_matrix(
     df: pd.DataFrame, numerical_features: List[str], save_path: str = None
 ) -> None:
-    """Plots the correlation matrix of the specified numerical features in the DataFrame.
+    """Plots the correlation matrix of numerical features in the DataFrame.
 
     Args:
         df (pd.DataFrame): DataFrame containing the data.
-        numerical_features (List[str]): List of numerical features to include in the correlation matrix.
-        save_path (str): Path to save the image file (optional).
+        numerical_features (List[str]): Numerical features to include.
+        save_path (str, optional): Path to save the image file.
     """
+
     numerical_df = df[numerical_features]
     correlation_matrix = numerical_df.corr()
 
@@ -241,13 +313,20 @@ def plot_correlation_matrix(
             "xanchor": "center",
             "yanchor": "top",
         },
-        title_font=dict(size=24),
+        title_font={"size": 24},
         template="plotly_white",
         height=800,
         width=800,
-        margin=dict(l=100, r=100, t=100, b=100),
-        xaxis=dict(tickangle=-45, title_font=dict(size=18), tickfont=dict(size=14)),
-        yaxis=dict(title_font=dict(size=18), tickfont=dict(size=14)),
+        margin={"l": 100, "r": 100, "t": 100, "b": 100},
+        xaxis={
+            "tickangle": -45,
+            "title_font": {"size": 18},
+            "tickfont": {"size": 14},
+        },
+        yaxis={
+            "title_font": {"size": 18},
+            "tickfont": {"size": 14},
+        },
     )
 
     fig.show()
@@ -290,6 +369,7 @@ def detect_anomalies_iqr(df: pd.DataFrame, features: List[str]) -> pd.DataFrame:
             print(feature_anomalies)
         else:
             print(f"No anomalies detected in feature '{feature}'.")
+
         anomalies_list.append(feature_anomalies)
 
     if anomalies_list:
@@ -327,7 +407,7 @@ def chi_square_test(
             continue
 
         contingency_table = pd.crosstab(df[col], df[target])
-        chi2, p, dof, expected = chi2_contingency(contingency_table)
+        chi2, p, _, _ = chi2_contingency(contingency_table)
 
         print(f"\nChi-Square test results for '{col}':")
         print(f"Chi2 statistic = {chi2}, p-value = {p}")
@@ -350,20 +430,20 @@ def confidence_interval(
         A tuple containing the lower and upper bounds of the confidence interval.
     """
     mean = np.mean(data)
-    sem = stats.sem(data)
-    margin = sem * stats.t.ppf((1 + confidence) / 2, len(data) - 1)
+    sem_value = stats.sem(data)
+    margin = sem_value * stats.t.ppf((1 + confidence) / 2, len(data) - 1)
     return mean - margin, mean + margin
 
 
 def analyze_features(
-    travel_df: pd.DataFrame, numerical_features: list, target: str
+    travel_df: pd.DataFrame, numerical_features: List[str], target: str
 ) -> None:
     """Analyze numerical features of a DataFrame by calculating confidence intervals.
 
     Args:
-        travel_df: The DataFrame containing the data.
-        numerical_features: A list of numerical feature names to analyze.
-        target: The target column name for the classification.
+        travel_df (pd.DataFrame): The DataFrame containing the data.
+        numerical_features (List[str]): A list of numerical feature names to analyze.
+        target (str): The target column name for the classification.
 
     Prints:
         The 95% confidence intervals for each feature for insured and not insured groups.
@@ -373,8 +453,12 @@ def analyze_features(
         not_insured = travel_df[travel_df[target] == 0][feature]
         ci_insured = confidence_interval(insured)
         ci_not_insured = confidence_interval(not_insured)
-        print(f"95% confidence interval for {feature} (insured): {ci_insured}")
-        print(f"95% confidence interval for {feature} (not insured): {ci_not_insured}")
+        print(
+            f"95% confidence interval for {feature} (insured): {ci_insured}"
+        )
+        print(
+            f"95% confidence interval for {feature} (not insured): {ci_not_insured}"
+        )
 
 
 def analyze_mannwhitneyu(
@@ -383,9 +467,9 @@ def analyze_mannwhitneyu(
     """Analyze numerical features using the Mann-Whitney U test.
 
     Args:
-        travel_df: The DataFrame containing the data.
-        numerical_features: A list of numerical feature names to analyze.
-        target: The target column name for the classification.
+        travel_df (pd.DataFrame): The DataFrame containing the data.
+        numerical_features (List[str]): A list of numerical feature names to analyze.
+        target (str): The target column name for the classification.
 
     Prints:
         The U-statistic and p-value for the Mann-Whitney U test for each feature,
@@ -394,9 +478,12 @@ def analyze_mannwhitneyu(
     for feature in numerical_features:
         insured = travel_df[travel_df[target] == 1][feature]
         not_insured = travel_df[travel_df[target] == 0][feature]
-        u_stat, p_val = mannwhitneyu(insured, not_insured, alternative="two-sided")
+        u_stat, p_val = mannwhitneyu(
+            insured, not_insured, alternative="two-sided"
+        )
         print(
-            f"Mann-Whitney U test for {feature}: U-statistic = {u_stat}, p-value = {p_val}"
+            f"Mann-Whitney U test for {feature}: U-statistic = {u_stat}, "
+            f"p-value = {p_val}"
         )
         if p_val < 0.05:
             print(f"Significant difference in distributions for {feature}.")
@@ -407,36 +494,34 @@ def analyze_mannwhitneyu(
 def adjust_threshold_for_recall(
     y_true: np.ndarray, y_proba: np.ndarray, target_recall: float = 1.0
 ) -> float:
-    """
-    Adjusts the classification threshold to achieve a target recall.
+    """Adjusts the classification threshold to achieve a target recall.
 
     Args:
-        y_true: Array of true labels.
-        y_proba: Array of predicted probabilities.
-        target_recall: The desired recall value (default: 1.0).
+        y_true (np.ndarray): Array of true labels.
+        y_proba (np.ndarray): Array of predicted probabilities.
+        target_recall (float): The desired recall value (default: 1.0).
 
     Returns:
-        The adjusted threshold value.
+        float: The adjusted threshold value.
     """
-    precisions, recalls, thresholds = precision_recall_curve(y_true, y_proba)
+    _, recalls, thresholds = precision_recall_curve(y_true, y_proba)
     target_index = np.argmin(np.abs(recalls - target_recall))
     return thresholds[target_index]
 
 
 def evaluate_model(
     name: str, y_true: np.ndarray, y_proba: np.ndarray, threshold: float
-) -> dict:
-    """
-    Evaluates a model's performance using various metrics.
+) -> Dict[str, float]:
+    """Evaluates a model's performance using various metrics.
 
     Args:
-        name: The name of the model.
-        y_true: Array of true labels.
-        y_proba: Array of predicted probabilities.
-        threshold: The classification threshold.
+        name (str): The name of the model.
+        y_true (np.ndarray): Array of true labels.
+        y_proba (np.ndarray): Array of predicted probabilities.
+        threshold (float): The classification threshold.
 
     Returns:
-        A dictionary containing the evaluation metrics.
+        Dict[str, float]: A dictionary containing the evaluation metrics.
     """
     y_pred = (y_proba >= threshold).astype(int)
     metrics = {
@@ -456,13 +541,13 @@ def evaluate_model(
 def plot_model_performance(
     results: Dict[str, Dict[str, float]], metrics: List[str], save_path: str = None
 ) -> None:
-    """
-    Plots and optionally saves a bar chart of model performance metrics with legend on the right.
+    """Plots and optionally saves a bar chart of model performance metrics with legend on the right.
 
     Args:
-        results: A dictionary with model names as keys and dicts of performance metrics as values.
-        metrics: List of performance metrics to plot (e.g., 'Accuracy', 'Precision').
-        save_path: Path to save the image file (optional).
+        results (Dict[str, Dict[str, float]]): A dictionary with model
+        names as keys and dicts of performance metrics as values.
+        metrics (List[str]): List of performance metrics to plot (e.g., 'Accuracy', 'Precision').
+        save_path (str): Path to save the image file (optional).
     """
     model_names = list(results.keys())
 
@@ -492,19 +577,24 @@ def plot_model_performance(
             "x": 0.5,
             "xanchor": "center",
             "yanchor": "top",
-            "font": dict(size=24),
+            "font": {"size": 24},
         },
         xaxis_title="Model",
         yaxis_title="Value",
         legend_title="Metrics",
-        font=dict(size=14),
+        font={"size": 14},
         height=500,
         width=1200,
         template="plotly_white",
-        legend=dict(yanchor="top", y=1, xanchor="left", x=1.02),
+        legend={"yanchor": "top", "y": 1, "xanchor": "left", "x": 1.02},
     )
 
-    fig.update_yaxes(range=[0, 1], showgrid=True, gridwidth=1, gridcolor="LightGrey")
+    fig.update_yaxes(
+        range=[0, 1],
+        showgrid=True,
+        gridwidth=1,
+        gridcolor="LightGrey",
+    )
     fig.update_xaxes(tickangle=-45)
 
     fig.show()
@@ -513,75 +603,105 @@ def plot_model_performance(
         fig.write_image(save_path)
 
 
-def plot_combined_confusion_matrices(
-    results, y_test, y_pred_dict, labels=None, save_path=None
-):
-    """
-    Plots a combined confusion matrix for multiple models.
+def _create_confusion_matrix_heatmap(
+    y_test: np.ndarray, y_pred: np.ndarray, labels: List[str] = None
+) -> go.Heatmap:
+    """Creates a heatmap for a confusion matrix.
 
-    Parameters:
-    results (dict): A dictionary containing the results of multiple models.
-        Each key is the name of a model, and the value is the result of that model.
-    y_test (numpy.ndarray): The true labels for the dataset.
-    y_pred_dict (dict): A dictionary containing the predicted labels for each model.
-        Each key is the name of a model, and the value is the predicted labels for that model.
-    labels (list, optional): A list of class labels. If not provided, default labels are used.
-    save_path (str, optional): The path to save the image file. If not provided, the image is not saved.
+    Args:
+        y_test (np.ndarray): The true labels.
+        y_pred (np.ndarray): The predicted labels.
+        labels (List[str], optional): Class labels.
 
     Returns:
-    None
+        go.Heatmap: The heatmap object for the confusion matrix.
     """
+    cm = confusion_matrix(y_test, y_pred)
+    cm_percent = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis] * 100
+
+    text = [
+        [
+            f"TN: {cm[0][0]}<br>({cm_percent[0][0]:.1f}%)",
+            f"FP: {cm[0][1]}<br>({cm_percent[0][1]:.1f}%)",
+        ],
+        [
+            f"FN: {cm[1][0]}<br>({cm_percent[1][0]:.1f}%)",
+            f"TP: {cm[1][1]}<br>({cm_percent[1][1]:.1f}%)",
+        ],
+    ]
+
+    heatmap = go.Heatmap(
+        z=cm,
+        x=labels if labels else ["Class 0", "Class 1"],
+        y=labels if labels else ["Class 0", "Class 1"],
+        hoverongaps=False,
+        text=text,
+        texttemplate="%{text}",
+        colorscale=[
+            [0, ALL_COLORS[2]],
+            [0.33, ALL_COLORS[1]],
+            [0.66, ALL_COLORS[1]],
+            [1, ALL_COLORS[0]],
+        ],
+        showscale=False,
+    )
+
+    return heatmap
+
+
+def plot_combined_confusion_matrices(
+    results: Dict[str, Dict[str, float]],
+    y_test: np.ndarray,
+    y_pred_dict: Dict[str, np.ndarray],
+    labels: List[str] = None,
+    save_path: str = None,
+) -> None:
+    """Plots combined confusion matrices for multiple models.
+
+    Args:
+        results (Dict[str, Dict[str, float]]): Model results with names as keys.
+        y_test (np.ndarray): True labels of the dataset.
+        y_pred_dict (Dict[str, np.ndarray]): Predicted labels for each model.
+        labels (List[str], optional): Class labels. Defaults to None.
+        save_path (str, optional): Path to save the image. Defaults to None.
+
+    Returns:
+        None
+    """
+
     n_models = len(results)
     if n_models > 4:
         print("Warning: Only the first 4 models will be plotted.")
         n_models = 4
 
-    fig = make_subplots(rows=2, cols=2, subplot_titles=list(results.keys())[:n_models])
+    fig = make_subplots(
+        rows=2,
+        cols=2,
+        subplot_titles=list(results.keys())[:n_models],
+    )
 
-    for i, (name, model_results) in enumerate(list(results.items())[:n_models]):
+    for i, (name, _) in enumerate(list(results.items())[:n_models]):
         row = i // 2 + 1
         col = i % 2 + 1
 
-        cm = confusion_matrix(y_test, y_pred_dict[name])
-        cm_percent = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis] * 100
-
-        # Create custom text for each cell
-        text = [
-            [
-                f"TN: {cm[0][0]}<br>({cm_percent[0][0]:.1f}%)",
-                f"FP: {cm[0][1]}<br>({cm_percent[0][1]:.1f}%)",
-            ],
-            [
-                f"FN: {cm[1][0]}<br>({cm_percent[1][0]:.1f}%)",
-                f"TP: {cm[1][1]}<br>({cm_percent[1][1]:.1f}%)",
-            ],
-        ]
-
-        # Define colorscale with normalized values
-        colorscale = [
-            [0, ALL_COLORS[2]],  # TN
-            [0.33, ALL_COLORS[1]],  # FP
-            [0.66, ALL_COLORS[1]],  # FN
-            [1, ALL_COLORS[0]],  # TP
-        ]
-
-        heatmap = go.Heatmap(
-            z=cm,
-            x=labels if labels else ["Class 0", "Class 1"],
-            y=labels if labels else ["Class 0", "Class 1"],
-            hoverongaps=False,
-            text=text,
-            texttemplate="%{text}",
-            colorscale=colorscale,
-            showscale=False,
+        heatmap = _create_confusion_matrix_heatmap(
+            y_test, y_pred_dict[name], labels
         )
 
         fig.add_trace(heatmap, row=row, col=col)
 
         fig.update_xaxes(
-            title_text="Predicted", row=row, col=col, tickfont=dict(size=10)
+            title_text="Predicted",
+            row=row,
+            col=col,
+            tickfont={"size": 10},
         )
-        fig.update_yaxes(title_text="Actual", row=row, col=col, tickfont=dict(size=10))
+        fig.update_yaxes(
+            title_text="Actual",
+            row=row,
+            col=col,
+            tickfont={"size": 10},
+        )
 
     fig.update_layout(
         title_text="Confusion Matrices for All Models",
@@ -589,7 +709,7 @@ def plot_combined_confusion_matrices(
         height=500,
         width=1200,
         showlegend=False,
-        font=dict(size=12),
+        font={"size": 12},
     )
 
     fig.show()
@@ -598,21 +718,23 @@ def plot_combined_confusion_matrices(
         fig.write_image(save_path)
 
 
-def extract_feature_importances(model, X, y):
-    """
-    Extract feature importances using permutation importance for models that do not directly provide them.
+def extract_feature_importances(
+    model, x: pd.DataFrame, y: pd.Series
+) -> np.ndarray:
+    """Extract feature importances using permutation importance
+    for models that do not directly provide them.
 
     Args:
-        model: Trained model
-        X: Feature data (DataFrame)
-        y: Target data (Series or array)
+        model: Trained model.
+        x (pd.DataFrame): Feature data.
+        y (pd.Series): Target data.
 
     Returns:
-        Array of feature importances
+        np.ndarray: Array of feature importances.
     """
     if hasattr(model, "feature_importances_"):
         return model.feature_importances_
-    else:
-        # Calculate permutation importance
-        perm_import = permutation_importance(model, X, y, n_repeats=30, random_state=42)
-        return perm_import.importances_mean
+    perm_import = permutation_importance(
+        model, x, y, n_repeats=30, random_state=42
+    )
+    return perm_import.importances_mean
